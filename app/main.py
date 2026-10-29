@@ -8,9 +8,11 @@ class Dictionary:
         self.length = 0
         self.capacity = capacity
         self.hash_table: list = [None] * self.capacity
+        self.threshold = self.capacity * 2 // 3
 
     def _resize(self) -> None:
         self.capacity *= 2
+        self.threshold = self.capacity * 2 // 3
         new_hash_table: list = [None] * self.capacity
 
         for entry in self.hash_table:
@@ -23,6 +25,9 @@ class Dictionary:
         self.hash_table = new_hash_table
 
     def __setitem__(self, key: Hashable, value: Any) -> None:
+        if self.length >= self.threshold:
+            self._resize()
+
         key_hash = hash(key)
         index = key_hash & (self.capacity - 1)
 
@@ -33,21 +38,12 @@ class Dictionary:
             ):
                 self.hash_table[index][1] = value
                 return
-            else:
-                index = (index + 1) & (self.capacity - 1)
-
-        self.threshold = self.capacity * 2 // 3
-        if self.length == self.threshold:
-            self._resize()
-
-            index = key_hash & (self.capacity - 1)
-            while self.hash_table[index] is not None:
-                index = (index + 1) & (self.capacity - 1)
+            index = (index + 1) & (self.capacity - 1)
 
         self.hash_table[index] = [key, value, key_hash]
         self.length += 1
 
-    def __getitem__(self, key: Hashable) -> list:
+    def __getitem__(self, key: Hashable) -> Any:
         key_hash = hash(key)
         index = key_hash & (self.capacity - 1)
 
@@ -60,7 +56,38 @@ class Dictionary:
 
             index = (index + 1) & (self.capacity - 1)
 
-        raise KeyError(key)
+        raise KeyError(f"Key {key} not found")
 
     def __len__(self) -> int:
         return self.length
+
+    def clear(self) -> None:
+        self.capacity = 8  # або ваш початковий дефолтний розмір
+        self.hash_table = [None] * self.capacity
+        self.length = 0
+        self.threshold = self.capacity * 2 // 3
+
+    def __delitem__(self, key: Hashable) -> None:
+        key_hash = hash(key)
+        index = key_hash & (self.capacity - 1)
+
+        while self.hash_table[index] is not None:
+            if (
+                    self.hash_table[index][2] == key_hash
+                    and self.hash_table[index][0] == key
+            ):
+                self.hash_table[index] = None
+                self.length -= 1
+
+                next_index = (index + 1) & (self.capacity - 1)
+                while self.hash_table[next_index] is not None:
+                    item = self.hash_table[next_index]
+                    self.hash_table[next_index] = None
+                    self.length -= 1
+                    self.__setitem__(item[0], item[1])
+                    next_index = (next_index + 1) & (self.capacity - 1)
+                return
+
+            index = (index + 1) & (self.capacity - 1)
+
+        raise KeyError(f"Key {key} not found")
